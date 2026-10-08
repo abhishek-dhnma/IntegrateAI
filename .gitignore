@@ -1,0 +1,42 @@
+# Environment files with sensitive keys
+.env
+.env.*
+*.env.local
+!.env.example
+
+# Compiled artifacts and build directories
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs and runtime data
+*.log
+logs/
+
+# IDE and Editor files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary and swap files
+*.tmp
+*.temp
+*.swp
+*~

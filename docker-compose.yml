@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  integrateai:
+    build: .
+    container_name: integrateai-app
+    ports:
+      - "8080:8080"
+    environment:
+      - NANGO_SECRET_KEY=${NANGO_SECRET_KEY:-test-nango-secret-key}
+      - NANGO_HOST=${NANGO_HOST:-https://api.nango.dev}
+      - GITHUB_INTEGRATION_ID=${GITHUB_INTEGRATION_ID:-github}
+      - NANGO_CONNECTION_ID=${NANGO_CONNECTION_ID:-demo-user-1}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-mock-key}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - AI_MODEL=${AI_MODEL:-openrouter/free}
+      - AI_MOCK_MODE=${AI_MOCK_MODE:-false}
+    restart: unless-stopped

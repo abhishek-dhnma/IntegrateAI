@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: integrateai
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+nango:
+  secret-key: ${NANGO_SECRET_KEY:test-nango-secret-key}
+  host: ${NANGO_HOST:https://api.nango.dev}
+  integration-id: ${GITHUB_INTEGRATION_ID:github}
+  default-connection-id: ${NANGO_CONNECTION_ID:demo-user-1}
+
+ai:
+  openrouter:
+    api-key: ${OPENROUTER_API_KEY:mock-key}
+    base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+    model: ${AI_MODEL:openrouter/free}
+  mock-mode: ${AI_MOCK_MODE:false}
+
+logging:
+  level:
+    root: INFO
+    com.integrateai: DEBUG
+    org.springframework.web: INFO

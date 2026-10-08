@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntegrateAI - AI Assistant for GitHub</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310a37f'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@nangohq/frontend@latest/dist/index.umd.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --surface-color: #171717;
+            --surface-hover: #212121;
+            --border-color: #2a2a2a;
+            --border-hover: #3a3a3a;
+            --text-primary: #ececec;
+            --text-secondary: #8e8e8e;
+            --text-muted: #5d5d5d;
+            --user-bubble: #262626;
+            --accent: #10a37f;
+            --accent-hover: #1a7f64;
+            --danger: #ef4444;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Header */
+        header {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: baseline;
+            gap: 0.6rem;
+        }
+
+        .app-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+        }
+
+        .app-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* GitHub Connection Pill */
+        .conn-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .conn-pill:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .conn-pill.connected {
+            border-color: rgba(16, 163, 127, 0.35);
+            background: rgba(16, 163, 127, 0.08);
+            color: #10a37f;
+        }
+
+        .conn-pill.disconnected {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 600;
+            border-color: transparent;
+        }
+
+        .conn-pill.disconnected:hover {
+            background: #e5e5e5;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10a37f;
+            display: inline-block;
+        }
+
+        /* Main Chat Container (ChatGPT Style) */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 768px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 1rem 7rem 1rem;
+        }
+
+        /* Welcome Screen (When empty) */
+        .welcome-view {
+            margin: auto 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        .welcome-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .welcome-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+
+        .welcome-desc {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            max-width: 480px;
+            line-height: 1.5;
+            margin-bottom: 2rem;
+        }
+
+        .suggestion-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 640px;
+        }
+
+        @media (max-width: 600px) {
+            .suggestion-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .prompt-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .prompt-card:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .prompt-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .prompt-card-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Message Stream */
+        .message-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .message-row {
+            display: flex;
+            width: 100%;
+        }
+
+        .message-row.user {
+            justify-content: flex-end;
+        }
+
+        .message-row.assistant {
+            justify-content: flex-start;
+        }
+
+        .user-bubble {
+            background: var(--user-bubble);
+            color: var(--text-primary);
+            padding: 0.8rem 1.1rem;
+            border-radius: 18px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            max-width: 80%;
+            word-break: break-word;
+        }
+
+        .assistant-content {
+            display: flex;
+            gap: 0.85rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .assistant-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #212121;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .assistant-text {
+            flex: 1;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        /* Markdown Styling inside Assistant */
+        .assistant-text p {
+            margin-bottom: 0.85rem;
+        }
+
+        .assistant-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .assistant-text ul,
+        .assistant-text ol {
+            margin-left: 1.25rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .assistant-text li {
+            margin-bottom: 0.35rem;
+        }
+
+        .assistant-text a {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+
+        .assistant-text a:hover {
+            text-decoration: underline;
+        }
+
+        .assistant-text code {
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .assistant-text pre {
+            background: #000000;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.85rem;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+        }
+
+        .assistant-text pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* Typing & Status indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            animation: pulse 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.2;
+                transform: scale(0.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Safety Confirmation Card (Clean ChatGPT-Style) */
+        .confirmation-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.15rem 1.25rem;
+            margin: 0.75rem 0;
+            max-width: 520px;
+        }
+
+        .confirmation-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .confirmation-details {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 0.75rem 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .confirmation-details strong {
+            color: var(--text-primary);
+        }
+
+        .confirmation-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            font-family: var(--font-family);
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            outline: none;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-cancel:hover {
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-confirm {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 600;
+        }
+
+        .btn-confirm:hover {
+            background: #e5e5e5;
+        }
+
+        /* Bottom Floating Input Bar */
+        .input-bar-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 1rem 1.25rem 1rem;
+            background: linear-gradient(to top, rgba(13, 13, 13, 1) 70%, rgba(13, 13, 13, 0) 100%);
+            pointer-events: none;
+        }
+
+        .input-box {
+            pointer-events: auto;
+            width: 100%;
+            max-width: 768px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 0.7rem 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+            transition: border-color 0.2s ease;
+        }
+
+        .input-box:focus-within {
+            border-color: #4a4a4a;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: 0.92rem;
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .send-button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #e5e5e5;
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #2a2a2a;
+            color: #555555;
+            cursor: not-allowed;
+        }
+
+        .input-disclaimer {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-brand">
+            <span class="app-name">IntegrateAI</span>
+            <span class="app-subtitle">AI assistant for your GitHub</span>
+        </div>
+
+        <div class="header-actions">
+            <button id="connButton" class="conn-pill disconnected" onclick="handleConnectionClick()">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                    <path
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                <span id="connLabel">Connect GitHub</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Chat Column -->
+    <main>
+        <div class="chat-container">
+
+            <!-- Welcome Screen (Default empty state) -->
+            <div id="welcomeView" class="welcome-view">
+                <div class="welcome-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h1 class="welcome-title">Your AI assistant for GitHub</h1>
+                <p class="welcome-desc">Connect your GitHub account and ask questions about your repositories, issues,
+                    and projects.</p>
+
+                <div class="suggestion-grid">
+                    <div class="prompt-card" onclick="sendSuggestion('Show my repositories.')">
+                        <div class="prompt-card-title">Show my repositories</div>
+                        <div class="prompt-card-desc">List your repositories and star counts</div>
+                    </div>
+                    <div class="prompt-card" onclick="sendSuggestion('Show my open issues.')">
+                        <div class="prompt-card-title">Show my open issues</div>
+                        <div class="prompt-card-desc">Check active issues across repositories</div>
+                    </div>
+                    <div class="prompt-card" onclick="sendSuggestion('Find recently updated repositories.')">
+                        <div class="prompt-card-title">Recently updated repositories</div>
+                        <div class="prompt-card-desc">View your latest repository activity</div>
+                    </div>
+                    <div class="prompt-card" onclick="sendSuggestion('Help me create a GitHub issue.')">
+                        <div class="prompt-card-title">Help me create an issue</div>
+                        <div class="prompt-card-desc">Draft an issue with title and details</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="messageList" class="message-list" style="display: none;"></div>
+
+        </div>
+
+        <!-- Floating Input Bar -->
+        <div class="input-bar-container">
+            <div class="input-box">
+                <input type="text" id="chatInput" class="chat-input"
+                    placeholder="Ask anything about your GitHub account..."
+                    onkeydown="if(event.key==='Enter') submitPrompt()">
+                <button id="sendBtn" class="send-button" onclick="submitPrompt()" title="Send prompt">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="input-disclaimer">IntegrateAI securely queries your GitHub account.</div>
+        </div>
+    </main>
+
+    <script>
+        const DEFAULT_CONNECTION_ID = "demo-user-1";
+        let isConnected = false;
+        let pendingAction = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            checkConnectionStatus();
+            setInterval(() => checkConnectionStatus(false), 10000);
+        });
+
+        // 1. Connection Status Checking
+        async function checkConnectionStatus(notifyOnSuccess = false) {
+            try {
+                const res = await fetch(`/api/connection/status?connectionId=${DEFAULT_CONNECTION_ID}`);
+                const data = await res.json();
+                const wasConnected = isConnected;
+                isConnected = data.connected === true;
+
+                const btn = document.getElementById("connButton");
+
+                if (isConnected) {
+                    btn.className = "conn-pill connected";
+                    btn.innerHTML = `<span class="status-dot"></span> GitHub Connected`;
+                    if (notifyOnSuccess && !wasConnected) {
+                        appendAssistantMessage("GitHub connected successfully. What would you like to check in your repositories?");
+                    }
+                } else {
+                    btn.className = "conn-pill disconnected";
+                    btn.innerHTML = `<svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg> <span>Connect GitHub</span>`;
+                }
+                return isConnected;
+            } catch (err) {
+                console.debug("Connection status check:", err);
+                return false;
+            }
+        }
+
+        // 2. Real GitHub Connection Initiation
+        async function handleConnectionClick() {
+            try {
+                const res = await fetch('/api/connection/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connectionId: DEFAULT_CONNECTION_ID })
+                });
+
+                if (!res.ok) {
+                    appendAssistantMessage("Unable to start GitHub authorization right now. Please verify your credentials and try again.");
+                    return;
+                }
+
+                const session = await res.json();
+                const sessionToken = session.token;
+
+                if (!sessionToken) {
+                    appendAssistantMessage("Unable to retrieve an authorization session. Please try again.");
+                    return;
+                }
+
+                // If Nango Frontend SDK is available, open the official Connect UI modal
+                if (window.Nango) {
+                    try {
+                        const nango = new window.Nango();
+                        nango.openConnectUI({
+                            sessionToken: sessionToken,
+                            onEvent: (event) => {
+                                if (event.type === 'connect' || event.type === 'close') {
+                                    checkConnectionStatus(true);
+                                }
+                            }
+                        });
+                        startConnectionPolling();
+                        return;
+                    } catch (e) {
+                        console.debug("Nango SDK modal open error, falling back to popup", e);
+                    }
+                }
+
+                // Fallback popup window for GitHub OAuth authorization
+                const authUrl = session.connectUrl || session.connect_url || `https://connect.nango.dev/?session_token=${encodeURIComponent(sessionToken)}`;
+                const popup = window.open(authUrl, 'GitHubAuth', 'width=600,height=700');
+                startConnectionPolling(popup);
+
+            } catch (err) {
+                console.error("Connect error:", err);
+                appendAssistantMessage("Unable to reach the connection service right now. Please try again.");
+            }
+        }
+
+        function startConnectionPolling(popup = null) {
+            let attempts = 0;
+            const timer = setInterval(async () => {
+                attempts++;
+                const connected = await checkConnectionStatus(true);
+                if (connected || attempts > 60) {
+                    clearInterval(timer);
+                } else if (popup && popup.closed) {
+                    await checkConnectionStatus(true);
+                    clearInterval(timer);
+                }
+            }, 2000);
+        }
+
+        // 3. Prompt Submission & Chat Flow
+        function sendSuggestion(text) {
+            document.getElementById("chatInput").value = text;
+            submitPrompt();
+        }
+
+        async function submitPrompt() {
+            const input = document.getElementById("chatInput");
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            // Hide welcome screen and show message list
+            document.getElementById("welcomeView").style.display = "none";
+            const messageList = document.getElementById("messageList");
+            messageList.style.display = "flex";
+
+            // Append user message
+            appendUserMessage(prompt);
+            input.value = "";
+
+            // Subtle status indicator
+            const statusMsg = getSubtleStatus(prompt);
+            const statusId = appendStatusIndicator(statusMsg);
+
+            try {
+                const res = await fetch('/api/agent/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        connectionId: DEFAULT_CONNECTION_ID
+                    })
+                });
+
+                removeElement(statusId);
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    const userMsg = errData.message || "GitHub couldn't complete that request right now. Please try again.";
+                    appendAssistantMessage(userMsg);
+                    return;
+                }
+
+                const data = await res.json();
+
+                // If GitHub is not connected, show friendly prompt with connect button
+                if (!data.githubConnected) {
+                    appendNotConnectedMessage();
+                    return;
+                }
+
+                // If tool requires write confirmation
+                if (data.requiresConfirmation) {
+                    pendingAction = data.pendingAction;
+                    appendConfirmationCard(data.pendingAction);
+                    return;
+                }
+
+                // Render normal response
+                appendAssistantMessage(data.message);
+                checkConnectionStatus();
+
+            } catch (err) {
+                removeElement(statusId);
+                console.error("Agent error:", err);
+                appendAssistantMessage("GitHub couldn't complete that request right now. Please check your connection and try again.");
+            }
+        }
+
+        function getSubtleStatus(prompt) {
+            const lower = prompt.toLowerCase();
+            if (lower.contains && lower.contains("issue") && (lower.contains("create") || lower.contains("new"))) {
+                return "Preparing GitHub issue...";
+            }
+            if (lower.includes("issue")) {
+                return "Checking your GitHub issues...";
+            }
+            return "Looking through your repositories...";
+        }
+
+        // 4. Confirmation Flow for Write Operations
+        function appendConfirmationCard(action) {
+            const list = document.getElementById("messageList");
+            const row = document.createElement("div");
+            row.className = "message-row assistant";
+
+            const owner = action.owner || "owner";
+            const repo = action.repo || "repository";
+            const title = action.title || "Untitled";
+            const desc = action.body || "No description provided";
+
+            row.innerHTML = `
+                <div class="assistant-content">
+                    <div class="assistant-avatar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="assistant-text">
+                        <div class="confirmation-card">
+                            <div class="confirmation-title">
+                                <span>Create GitHub issue?</span>
+                            </div>
+                            <div class="confirmation-details">
+                                <div><strong>Repository:</strong> ${escapeHtml(owner)}/${escapeHtml(repo)}</div>
+                                <div><strong>Title:</strong> ${escapeHtml(title)}</div>
+                                <div><strong>Description:</strong> ${escapeHtml(desc)}</div>
+                            </div>
+                            <div class="confirmation-actions">
+                                <button class="btn btn-cancel" onclick="resolveConfirmation(this, false)">Cancel</button>
+                                <button class="btn btn-confirm" onclick="resolveConfirmation(this, true)">Create issue</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            list.appendChild(row);
+            scrollToBottom();
+        }
+
+        async function resolveConfirmation(btnElement, confirmed) {
+            // Disable card buttons
+            const card = btnElement.closest(".confirmation-card");
+            card.querySelectorAll("button").forEach(b => b.disabled = true);
+
+            if (!confirmed) {
+                appendAssistantMessage("Action cancelled. The issue was not created.");
+                pendingAction = null;
+                return;
+            }
+
+            const statusId = appendStatusIndicator("Creating issue on GitHub...");
+
+            try {
+                const res = await fetch('/api/agent/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        connectionId: DEFAULT_CONNECTION_ID,
+                        confirmed: true,
+                        pendingAction: pendingAction
+                    })
+                });
+
+                removeElement(statusId);
+
+                if (!res.ok) {
+                    appendAssistantMessage("GitHub couldn't create that issue right now. Please verify your permissions and try again.");
+                    return;
+                }
+
+                const data = await res.json();
+                appendAssistantMessage(data.message);
+
+            } catch (err) {
+                removeElement(statusId);
+                appendAssistantMessage("GitHub couldn't complete that request right now. Please try again.");
+            }
+
+            pendingAction = null;
+        }
+
+        // 5. DOM Helpers & Message Appending
+        function appendUserMessage(text) {
+            const list = document.getElementById("messageList");
+            const row = document.createElement("div");
+            row.className = "message-row user";
+            row.innerHTML = `<div class="user-bubble">${escapeHtml(text)}</div>`;
+            list.appendChild(row);
+            scrollToBottom();
+        }
+
+        function appendAssistantMessage(markdownText) {
+            const list = document.getElementById("messageList");
+            const row = document.createElement("div");
+            row.className = "message-row assistant";
+
+            // Sanitize raw technical errors if any leak through
+            let cleanText = sanitizeUserFacingText(markdownText);
+
+            row.innerHTML = `
+                <div class="assistant-content">
+                    <div class="assistant-avatar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="assistant-text">${marked.parse(cleanText)}</div>
+                </div>
+            `;
+            list.appendChild(row);
+            scrollToBottom();
+        }
+
+        function appendNotConnectedMessage() {
+            const list = document.getElementById("messageList");
+            const row = document.createElement("div");
+            row.className = "message-row assistant";
+            row.innerHTML = `
+                <div class="assistant-content">
+                    <div class="assistant-avatar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="assistant-text">
+                        <p>GitHub isn't connected yet. Connect your GitHub account first to use this feature.</p>
+                        <button class="btn btn-confirm" style="margin-top: 0.5rem;" onclick="handleConnectionClick()">
+                            Connect GitHub
+                        </button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(row);
+            scrollToBottom();
+        }
+
+        function appendStatusIndicator(text) {
+            const list = document.getElementById("messageList");
+            const id = "status-" + Math.random().toString(36).substr(2, 9);
+            const row = document.createElement("div");
+            row.className = "message-row assistant";
+            row.id = id;
+            row.innerHTML = `
+                <div class="assistant-content">
+                    <div class="assistant-avatar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="assistant-text">
+                        <div class="status-indicator">
+                            <span class="pulse-dot"></span>
+                            <span>${escapeHtml(text)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.appendChild(row);
+            scrollToBottom();
+            return id;
+        }
+
+        function sanitizeUserFacingText(text) {
+            if (!text) return "";
+            if (text.includes("missing_environment") || text.includes("connectionStatus=FAILED")) {
+                return "GitHub isn't connected yet. Connect your GitHub account to continue.";
+            }
+            if (text.includes("Nango Proxy Request Failed") || text.includes("NangoException")) {
+                return "GitHub couldn't complete that request right now. Please try again.";
+            }
+            return text;
+        }
+
+        function removeElement(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        function escapeHtml(string) {
+            const entityMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            };
+            return String(string).replace(/[&<>"']/g, s => entityMap[s]);
+        }
+    </script>
+</body>
+
+</html>
